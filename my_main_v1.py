@@ -2,14 +2,16 @@ import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtWebEngineWidgets import QWebEnginePage
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtCore import pyqtSlot, pyqtSignal, QUrl
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, QUrl, QThread
 from PyQt5 import QtCore
 from PyQt5 import uic
 from lib.MyViewerLayout import Ui_MainWindow
 from lib.MyAuthDialog import AuthDialog
+from lib.MyIntroWorker import MyIntroWorker
 import pytube
 import re
 import datetime
+from PyQt5.QtMultimedia import QSound
 # import os
 # os.path 절대경로 불러와서 join 해서 파일불러와야함 --> 상대경로 하는법도 연습ㅋ
 
@@ -31,6 +33,11 @@ class Main(QMainWindow, Ui_MainWindow):
         # youtube 관련 작업
         self.youtb = None
         self.youtb_fsize = 0
+        # 배경음악 Thread 작업 선언
+        self.initIntroThread()
+        # QThread 사용안할 경우
+        # 레퍼런스 보면 여러옵션이 있음(replay 등등)
+        # QSound.play("D:/inflearn/crawling/section6/resource/intro.wav")
 
     # 기본 UI 비활성화
     def initAuthLock(self):  # 인증받기전에 모든 버튼 비활성화 (종료버튼만 내비둠)
@@ -67,6 +74,27 @@ class Main(QMainWindow, Ui_MainWindow):
         self.fileNavButton.clicked.connect(self.selectDownPath)
         self.calendarWidget.clicked.connect(self.append_date)
         self.startButton.clicked.connect(self.downloadYoutb)
+
+    # 인트로 쓰레드 초기화 및 활성화
+    def initIntroThread(self):
+        # worker 선언
+        self.introObj = MyIntroWorker()  # 클래스를 인스턴스화
+        # QThread 선언
+        self.introThread = QThread()  # Pyqt에서 제공하는 Qthread 인스턴스화
+        # worker to thread 전환
+        self.introObj.moveToThread(self.introThread)  # QObject에서 제공하는 메쏘드
+        # 시그널 연결
+        self.introObj.startMsg.connect(self.showIntroInfo)
+        # Thread 시작 메소드 연결
+        self.introThread.started.connect(self.introObj.playBgm)  # 쓰레드가 시작되면..
+        # Thread 스타트버튼은
+        self.introThread.start()
+
+    # 인트로 쓰레드 시그널 실행
+    def showIntroInfo(self, userName, fileName):
+        self.plainTextEdit.appendPlainText("Program started by : " + userName)
+        self.plainTextEdit.appendPlainText("Playing intro Information is :")
+        self.plainTextEdit.appendPlainText(fileName)
 
     @pyqtSlot()
     def authCheck(self):
